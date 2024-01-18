@@ -32,8 +32,8 @@ appsettings.json
       "Tls": true
     },
     "SES": {
-      "AccessKey": "",
-      "SecretAccessKey": "",
+      "AccessKey": "***",
+      "SecretAccessKey": "***",
       "Region": "eu-central-1"
     },
     "Postmark": {
@@ -41,16 +41,18 @@ appsettings.json
       "MessageStream": "outbound"
     },
     "Mailjet": {
-      "ApiKey": "***"
+      "ApiKey": "***",
+      "ApiSecret": "***"
     },
     "SendGrid": {
-      "ApiKey": ""
+      "ApiKey": "***"
     }
   }
 }
 ```
 
 - use .NET 8 keyed services to have multiple configurations of the same provider
+- appsettings is matched with "Email:{key}"
 ```csharp
 serviceCollection.AddCoreEmail();
 serviceCollection.AddSmtpProvider("SMTP");
