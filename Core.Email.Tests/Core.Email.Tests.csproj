@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="appsettings.json" />
+    <None Remove="appsettings.private.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.private.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core.Email.Abstractions\Core.Email.Abstractions.csproj" />
+    <ProjectReference Include="..\Core.Email.Provider.Mailjet\Core.Email.Provider.Mailjet.csproj" />
+    <ProjectReference Include="..\Core.Email.Provider.Postmark\Core.Email.Provider.Postmark.csproj" />
+    <ProjectReference Include="..\Core.Email.Provider.SendGrid\Core.Email.Provider.SendGrid.csproj" />
+    <ProjectReference Include="..\Core.Email.Provider.SES\Core.Email.Provider.SES.csproj" />
+    <ProjectReference Include="..\Core.Email.Provider.SMTP\Core.Email.Provider.SMTP.csproj" />
+    <ProjectReference Include="..\Core.Email\Core.Email.csproj" />
+  </ItemGroup>
+
+</Project>
