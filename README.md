@@ -28,12 +28,20 @@ appsettings.json
       "Password": "***",
       "Tls": true
     },
+    "SES": {
+      "AccessKey": "",
+      "SecretAccessKey": "",
+      "Region": "eu-central-1"
+    },
     "Postmark": {
       "ServerToken": "***",
       "MessageStream": "outbound"
     },
     "Mailjet": {
       "ApiKey": "***"
+    },
+    "SendGrid": {
+      "ApiKey": ""
     }
   }
 }
