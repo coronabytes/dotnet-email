@@ -14,3 +14,46 @@ dotnet add package Core.Email.Provider.SES
   - mailjet
   - sendgrid
   - postmark
+ 
+# Usage
+appsettings.json
+```json
+{
+  "Email": {
+    "Default": "Postmark",
+    "SMTP": {
+      "Host": "smtp.***.com",
+      "Port": 587,
+      "Username": "***",
+      "Password": "***",
+      "Tls": true
+    },
+    "Postmark": {
+      "ServerToken": "***",
+      "MessageStream": "outbound"
+    },
+    "Mailjet": {
+      "ApiKey": "***"
+    }
+  }
+}
+```
+
+```csharp
+serviceCollection.AddCoreEmail();
+serviceCollection.AddSmtpProvider("SMTP");
+serviceCollection.AddPostmarkProvider("Postmark");
+serviceCollection.AddSendGridProvider("SendGrid");
+serviceCollection.AddMailjetProvider("MailJet");
+serviceCollection.AddSimpleEmailServiceProvider("SES");
+
+var email = serviceProvider.GetRequiredService<ICoreEmail>();
+
+await email.SendAsync(new CoreEmailMessage
+{
+  To = ["test@example.com"],
+  From = "test@example.com",
+  Subject = "Transactional Mail Subject",
+  TextBody = "Transactional Mail Body"
+});
+```
