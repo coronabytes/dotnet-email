@@ -2,5 +2,5 @@
 
 public interface ICoreEmail
 {
-    public Task SendAsync(CoreEmailMessage message, CancellationToken cancellationToken = default);
+    public Task<CoreEmailStatus> SendAsync(CoreEmailMessage message, CancellationToken cancellationToken = default);
 }

@@ -7,18 +7,24 @@ namespace Core.Email;
 
 internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration config) : BackgroundService, ICoreEmail
 {
-    public ICoreEmailProvider? Provider { get; init; } = serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
+    public ICoreEmailProvider? Provider { get; init; } =
+        serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
+
     public ICoreEmailPersistence? Persistence { get; init; }
 
-    public async Task SendAsync(CoreEmailMessage message, CancellationToken cancellationToken = default)
+    public async Task<CoreEmailStatus> SendAsync(CoreEmailMessage message,
+        CancellationToken cancellationToken = default)
     {
         if (Provider == null)
             throw new InvalidOperationException("default provider not found");
 
         if (Persistence != null)
+        {
             await Persistence.StoreBatchAsync([message], cancellationToken);
-        else
-            await Provider.SendBatchAsync([message], cancellationToken);
+            return new CoreEmailStatus { Id = message.Id, IsSuccess = true }; // TODO: ?
+        }
+
+        return (await Provider.SendBatchAsync([message], cancellationToken)).First();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

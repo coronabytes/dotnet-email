@@ -19,7 +19,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Email.Provider.SendGri
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Email", "Core.Email\Core.Email.csproj", "{40175A79-1AE8-43E6-9E53-B52580CD36BD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core.Email.Tests", "Core.Email.Tests\Core.Email.Tests.csproj", "{D0D62981-21C4-4A66-A7EE-466D138B2AD7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core.Email.Tests", "Core.Email.Tests\Core.Email.Tests.csproj", "{D0D62981-21C4-4A66-A7EE-466D138B2AD7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,10 +1,9 @@
 ﻿using Core.Email.Abstractions;
-using Core.Email.Provider.SES;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Email.Provider.SES;
 
-public static class SendGridProviderExtensions
+public static class SimpleEmailServiceProviderExtensions
 {
     public static void AddSimpleEmailServiceProvider(this IServiceCollection collection, string? key = null)
     {
