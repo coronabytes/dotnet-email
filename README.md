@@ -14,6 +14,9 @@ dotnet add package Core.Email.Provider.SES
   - mailjet
   - sendgrid
   - postmark
+- TODO
+  - attachments
+  - bounce handlers  
  
 # Usage
 appsettings.json
@@ -47,12 +50,13 @@ appsettings.json
 }
 ```
 
+- use .NET 8 keyed services to have multiple configurations of the same provider
 ```csharp
 serviceCollection.AddCoreEmail();
 serviceCollection.AddSmtpProvider("SMTP");
 serviceCollection.AddPostmarkProvider("Postmark");
 serviceCollection.AddSendGridProvider("SendGrid");
-serviceCollection.AddMailjetProvider("MailJet");
+serviceCollection.AddMailjetProvider("Mailjet");
 serviceCollection.AddSimpleEmailServiceProvider("SES");
 
 var email = serviceProvider.GetRequiredService<ICoreEmail>();
