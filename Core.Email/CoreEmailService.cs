@@ -7,29 +7,30 @@ namespace Core.Email;
 
 internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration config) : BackgroundService, ICoreEmail
 {
-    public ICoreEmailProvider? Provider { get; init; } =
-        serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
+    private ICoreEmailProvider? _defaultProvider = serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
 
-    public ICoreEmailPersistence? Persistence { get; init; }
+    private ICoreEmailPersistence? _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
 
     public async Task<CoreEmailStatus> SendAsync(CoreEmailMessage message,
         CancellationToken cancellationToken = default)
     {
-        if (Provider == null)
-            throw new InvalidOperationException("default provider not found");
+        var provider = message.ProviderKey != null ? serviceProvider.GetKeyedService<ICoreEmailProvider>(message.ProviderKey) : _defaultProvider;
 
-        if (Persistence != null)
+        if (provider == null)
+            throw new InvalidOperationException($"provider \"{message.ProviderKey ?? "Default"}\" not found");
+
+        if (_persistence != null)
         {
-            await Persistence.StoreBatchAsync([message], cancellationToken);
-            return new CoreEmailStatus { Id = message.Id, IsSuccess = true }; // TODO: ?
+            await _persistence.StoreBatchAsync([message], cancellationToken);
+            return new CoreEmailStatus { Id = message.Id, IsSuccess = true };
         }
 
-        return (await Provider.SendBatchAsync([message], cancellationToken)).First();
+        return (await provider.SendBatchAsync([message], cancellationToken)).First();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (Persistence == null || Provider == null)
+        if (_persistence == null)
             return;
 
         while (!stoppingToken.IsCancellationRequested)
@@ -39,16 +40,25 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
             if (stoppingToken.IsCancellationRequested)
                 break;
 
-            // TODO: redis lock
-
             try
             {
-                var messages = await Persistence.GetUnsentAsync(CancellationToken.None);
-                await Provider.SendBatchAsync(messages, CancellationToken.None);
+                var messages = await _persistence.GetUnsentAsync(CancellationToken.None);
+                foreach (var grouping in messages.GroupBy(x=>x.ProviderKey))
+                {
+                    var key = grouping.Key;
+                    var provider = key != null ? serviceProvider.GetKeyedService<ICoreEmailProvider>(key) : _defaultProvider;
+
+                    if (provider == null)
+                        continue;
+
+                    var res = await provider.SendBatchAsync(messages, CancellationToken.None);
+                    var updates = res.ToDictionary(x => x.Id, x => x.IsSuccess ? null : x.Error);
+                    await _persistence.UpdateStatusAsync(updates, CancellationToken.None);
+                }
             }
             catch (Exception e)
             {
-                //
+                // TODO: 
             }
         }
     }

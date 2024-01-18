@@ -33,6 +33,9 @@ internal class SendGridProvider : ICoreEmailProvider
                     new EmailAddress(message.To.First()), message.Subject,
                     message.TextBody, message.HtmlBody);
 
+                if (!string.IsNullOrEmpty(message.ReplyTo))
+                    m.ReplyTo = new EmailAddress(message.ReplyTo);
+
                 // TODO: add other Tos
                 foreach (var cc in message.Cc)
                     m.AddCc(new EmailAddress(cc));
@@ -50,7 +53,8 @@ internal class SendGridProvider : ICoreEmailProvider
                 {
                     Id = message.Id,
                     IsSuccess = res.IsSuccessStatusCode,
-                    Error = await res.Body.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false)
+                    Error = await res.Body.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false),
+                    
                 });
             }
             catch (Exception e)

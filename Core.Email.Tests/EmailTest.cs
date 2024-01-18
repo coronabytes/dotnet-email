@@ -1,3 +1,4 @@
+using System.Text;
 using Core.Email.Abstractions;
 using Core.Email.Provider.Mailjet;
 using Core.Email.Provider.Postmark;
@@ -36,12 +37,20 @@ public class EmailTest
         var from = config["TestSetup:From"];
         var to = config["TestSetup:To"];
 
-        await email.SendAsync(new CoreEmailMessage
+        var res = await email.SendAsync(new CoreEmailMessage
         {
             To = [to!],
             From = from!,
-            Subject = "Transactional Mail Test 3",
-            TextBody = "Transactional Mail Test 3"
+            Subject = "Transactional Mail Test 5",
+            TextBody = "Transactional Mail Test 5",
+            Attachments = [new CoreEmailAttachment
+            {
+                Name = "File.txt",
+                ContentType = "text/plain",
+                Content = "Hello World!"u8.ToArray()
+            }]
         });
+
+        Assert.True(res.IsSuccess);
     }
 }

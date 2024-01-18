@@ -37,6 +37,9 @@ internal class SmtpProvider : ICoreEmailProvider
                 var m = new MimeMessage();
                 m.From.Add(new MailboxAddress(string.Empty, message.From));
 
+                if (!string.IsNullOrEmpty(message.ReplyTo))
+                    m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
+
                 foreach (var to in message.To)
                     m.To.Add(new MailboxAddress(string.Empty, to));
 

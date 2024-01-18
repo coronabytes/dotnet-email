@@ -29,6 +29,7 @@ internal class PostmarkProvider : ICoreEmailProvider
             To = x.To.First(),
             Cc = x.Cc.FirstOrDefault(), // TODO: only one?
             Bcc = x.Bcc.FirstOrDefault(),
+            ReplyTo = x.ReplyTo,
             Subject = x.Subject,
             TextBody = x.TextBody,
             HtmlBody = x.HtmlBody,
@@ -41,9 +42,10 @@ internal class PostmarkProvider : ICoreEmailProvider
             }).ToList()
         })).ConfigureAwait(false);
 
-        return res.Select(x => new CoreEmailStatus
+        return res.Select((x, idx) => new CoreEmailStatus
         {
-            Id = x.MessageID, // TODO: match order?
+            Id = messages[idx].Id,
+            ProviderMessageId = x.MessageID.ToString("N"),
             IsSuccess = x.Status == PostmarkStatus.Success,
             Error = x.Message
         }).ToList();

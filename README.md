@@ -7,7 +7,6 @@ dotnet add package Core.Email.Provider.SES
 ```
 
 # .NET Transactional E-Mail Abstraction Layer
-- open source (Apache 2.0)
 - common providers
   - smtp via mailkit
   - aws ses
@@ -15,7 +14,6 @@ dotnet add package Core.Email.Provider.SES
   - sendgrid
   - postmark
 - TODO
-  - attachments
   - bounce handlers  
  
 # Usage
@@ -68,6 +66,12 @@ await email.SendAsync(new CoreEmailMessage
   To = ["test@example.com"],
   From = "test@example.com",
   Subject = "Transactional Mail Subject",
-  TextBody = "Transactional Mail Body"
+  TextBody = "Transactional Mail Body",
+  Attachments = [new CoreEmailAttachment
+  {
+    Name = "File.txt",
+    ContentType = "text/plain",
+    Content = "Hello World!"u8.ToArray()
+  }]
 });
 ```

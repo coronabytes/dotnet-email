@@ -30,6 +30,7 @@ internal class MailjetProvider : ICoreEmailProvider
             To = x.To.Select(y => new SendContact(y)).ToList(),
             Cc = x.Cc.Select(y => new SendContact(y)).ToList(),
             Bcc = x.Bcc.Select(y => new SendContact(y)).ToList(),
+            ReplyTo = string.IsNullOrEmpty(x.ReplyTo) ? null : new SendContact(x.ReplyTo),
             Subject = x.Subject,
             TextPart = x.TextBody,
             HTMLPart = x.HtmlBody,

@@ -5,6 +5,7 @@ using Core.Email.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MimeKit;
+using System.Net.Mail;
 
 namespace Core.Email.Provider.SES;
 
@@ -35,6 +36,9 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
             {
                 var m = new MimeMessage();
                 m.From.Add(new MailboxAddress("", message.From));
+
+                if (!string.IsNullOrEmpty(message.ReplyTo))
+                    m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
 
                 foreach (var to in message.To)
                     m.To.Add(new MailboxAddress(string.Empty, to));
@@ -70,6 +74,7 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
                 list.Add(new CoreEmailStatus
                 {
                     Id = message.Id,
+                    ProviderMessageId = res.MessageId,
                     IsSuccess = (int)res.HttpStatusCode >= 200 && (int)res.HttpStatusCode < 300,
                     Error = string.Empty // TODO: ?
                 });
