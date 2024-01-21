@@ -1,5 +1,6 @@
 ﻿namespace Core.Email.Abstractions;
 
+[Serializable]
 public class CoreEmailStatus
 {
     public Guid Id { get; set; }

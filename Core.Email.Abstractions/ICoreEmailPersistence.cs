@@ -7,4 +7,7 @@ public interface ICoreEmailPersistence
     public Task<List<CoreEmailMessage>> GetUnsentAsync(CancellationToken cancellationToken = default);
 
     public Task UpdateStatusAsync(IDictionary<Guid, string?> updates, CancellationToken cancellationToken = default);
+
+    public Task StoreNotificationBatchAsync(IList<CoreEmailNotification> notifications,
+        CancellationToken cancellationToken = default);
 }

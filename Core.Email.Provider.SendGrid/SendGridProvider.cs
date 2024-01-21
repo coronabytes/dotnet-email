@@ -53,8 +53,7 @@ internal class SendGridProvider : ICoreEmailProvider
                 {
                     Id = message.Id,
                     IsSuccess = res.IsSuccessStatusCode,
-                    Error = await res.Body.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false),
-                    
+                    Error = await res.Body.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false)
                 });
             }
             catch (Exception e)

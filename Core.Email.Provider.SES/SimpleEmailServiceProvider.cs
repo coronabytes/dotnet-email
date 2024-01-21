@@ -1,25 +1,37 @@
-﻿using Amazon;
+﻿using System.Text.Json;
+using Amazon;
 using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
+using Amazon.SQS;
+using Amazon.SQS.Model;
 using Core.Email.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MimeKit;
-using System.Net.Mail;
 
 namespace Core.Email.Provider.SES;
 
 internal class SimpleEmailServiceProvider : ICoreEmailProvider
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly Options _options = new();
+    private readonly ICoreEmailPersistence? _persistence;
 
     private readonly AmazonSimpleEmailServiceV2Client _ses;
 
-    public SimpleEmailServiceProvider(IConfiguration configuration, [ServiceKey] string key)
+
+    public SimpleEmailServiceProvider(IConfiguration configuration, [ServiceKey] string key,
+        IServiceProvider serviceProvider)
     {
         configuration.Bind($"Email:{key}", _options);
         _ses = new AmazonSimpleEmailServiceV2Client(_options.AccessKey, _options.SecretAccessKey,
             RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
+
+        _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
     }
 
     public string Name => "SES";
@@ -68,23 +80,23 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
                 stream.Position = 0;
 
                 var res = await _ses.SendEmailAsync(new SendEmailRequest
+                {
+                    FromEmailAddress = message.From,
+                    Destination = new Destination
                     {
-                        FromEmailAddress = message.From,
-                        Destination = new Destination
+                        ToAddresses = message.To,
+                        CcAddresses = message.Cc,
+                        BccAddresses = message.Bcc
+                    },
+                    Content = new EmailContent
+                    {
+                        Raw = new RawMessage
                         {
-                            ToAddresses = message.To,
-                            CcAddresses = message.Cc,
-                            BccAddresses = message.Bcc
-                        },
-                        Content = new EmailContent
-                        {
-                            Raw = new RawMessage
-                            {
-                                Data = stream
-                            }
-                        },
-                        ReplyToAddresses = string.IsNullOrEmpty(message.ReplyTo) ? new () : [message.ReplyTo]
-                    }, cancellationToken).ConfigureAwait(false);
+                            Data = stream
+                        }
+                    },
+                    ReplyToAddresses = string.IsNullOrEmpty(message.ReplyTo) ? new List<string>() : [message.ReplyTo]
+                }, cancellationToken).ConfigureAwait(false);
 
                 list.Add(new CoreEmailStatus
                 {
@@ -107,11 +119,126 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         return list;
     }
 
+    public async Task GetNotificationsAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(_options.QueueUrl) || _persistence == null)
+            return;
+
+        var sqs = new AmazonSQSClient(_options.AccessKey, _options.SecretAccessKey,
+            RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
+
+        while (!cancellationToken.IsCancellationRequested)
+            try
+            {
+                var messages = await sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                {
+                    MaxNumberOfMessages = 10,
+                    VisibilityTimeout = 60,
+                    QueueUrl = _options.QueueUrl,
+                    WaitTimeSeconds = 30
+                }, cancellationToken).ConfigureAwait(false);
+
+                await _persistence.StoreNotificationBatchAsync(messages.Messages.Select(x =>
+                {
+                    var body = JsonSerializer.Deserialize<Notification>(x.Body, JsonOptions);
+
+                    return new CoreEmailNotification
+                    {
+                        ProviderMessageId = body?.Mail?.MessageId ?? string.Empty,
+                        Type = body?.NotificationType switch
+                        {
+                            "Bounce" => CoreEmailNotificationType.Bounce,
+                            "Complaint" => CoreEmailNotificationType.Complaint,
+                            "Delivery" => CoreEmailNotificationType.Delivery,
+                            _ => CoreEmailNotificationType.Unknown
+                        },
+                        Recipients = body?.NotificationType switch
+                        {
+                            "Bounce" => body.Bounce?.BouncedRecipients.Select(y => y.EmailAddress).ToList(),
+                            "Complaint" => body.Complaint?.ComplainedRecipients.Select(y => y.EmailAddress).ToList(),
+                            "Delivery" => body.Delivery?.Recipients.ToList(),
+                            _ => null
+                        } ?? [],
+                        Timestamp = body?.NotificationType switch
+                        {
+                            "Bounce" => body.Bounce?.Timestamp ?? DateTimeOffset.UtcNow,
+                            "Complaint" => body.Complaint?.Timestamp ?? DateTimeOffset.UtcNow,
+                            "Delivery" => body.Delivery?.Timestamp ?? DateTimeOffset.UtcNow,
+                            _ => DateTimeOffset.UtcNow
+                        }
+                    };
+                }).ToList(), CancellationToken.None);
+
+                await sqs.DeleteMessageBatchAsync(new DeleteMessageBatchRequest
+                {
+                    QueueUrl = _options.QueueUrl,
+                    Entries = messages.Messages
+                        .Select(x => new DeleteMessageBatchRequestEntry(x.MessageId, x.ReceiptHandle))
+                        .ToList()
+                }, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                // TODO:
+            }
+    }
+
     [Serializable]
     private class Options
     {
         public string AccessKey { get; set; } = string.Empty;
         public string SecretAccessKey { get; set; } = string.Empty;
         public string? Region { get; set; }
+        public string? QueueUrl { get; set; }
+    }
+
+    [Serializable]
+    private class Notification
+    {
+        public string NotificationType { get; set; } = string.Empty;
+        public BounceNotification? Bounce { get; set; }
+        public ComplaintNotification? Complaint { get; set; }
+        public DeliveryNotification? Delivery { get; set; }
+        public MailNotification? Mail { get; set; }
+    }
+
+    [Serializable]
+    private class MailNotification
+    {
+        public string MessageId { get; set; } = string.Empty;
+
+        public DateTimeOffset Timestamp { get; set; }
+    }
+
+    [Serializable]
+    private class BounceEmail
+    {
+        public string EmailAddress { get; set; } = string.Empty;
+    }
+
+    [Serializable]
+    private class BounceNotification
+    {
+        public string BounceType { get; set; } = string.Empty;
+        public string BounceSubType { get; set; } = string.Empty;
+
+        public List<BounceEmail> BouncedRecipients { get; set; } = new();
+        public DateTimeOffset Timestamp { get; set; }
+    }
+
+    [Serializable]
+    private class ComplaintNotification
+    {
+        public string ComplaintFeedbackType { get; set; } = string.Empty;
+        public List<BounceEmail> ComplainedRecipients { get; set; } = new();
+        public DateTimeOffset ArrivalDate { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
+    }
+
+    [Serializable]
+    private class DeliveryNotification
+    {
+        public List<string> Recipients { get; set; } = new();
+        public DateTimeOffset Timestamp { get; set; }
     }
 }

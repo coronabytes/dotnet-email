@@ -7,14 +7,17 @@ namespace Core.Email;
 
 internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration config) : BackgroundService, ICoreEmail
 {
-    private ICoreEmailProvider? _defaultProvider = serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
+    private readonly ICoreEmailProvider? _defaultProvider =
+        serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
 
-    private ICoreEmailPersistence? _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
+    private readonly ICoreEmailPersistence? _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
 
     public async Task<CoreEmailStatus> SendAsync(CoreEmailMessage message,
         CancellationToken cancellationToken = default)
     {
-        var provider = message.ProviderKey != null ? serviceProvider.GetKeyedService<ICoreEmailProvider>(message.ProviderKey) : _defaultProvider;
+        var provider = message.ProviderKey != null
+            ? serviceProvider.GetKeyedService<ICoreEmailProvider>(message.ProviderKey)
+            : _defaultProvider;
 
         if (provider == null)
             throw new InvalidOperationException($"provider \"{message.ProviderKey ?? "Default"}\" not found");
@@ -43,10 +46,12 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
             try
             {
                 var messages = await _persistence.GetUnsentAsync(CancellationToken.None);
-                foreach (var grouping in messages.GroupBy(x=>x.ProviderKey))
+                foreach (var grouping in messages.GroupBy(x => x.ProviderKey))
                 {
                     var key = grouping.Key;
-                    var provider = key != null ? serviceProvider.GetKeyedService<ICoreEmailProvider>(key) : _defaultProvider;
+                    var provider = key != null
+                        ? serviceProvider.GetKeyedService<ICoreEmailProvider>(key)
+                        : _defaultProvider;
 
                     if (provider == null)
                         continue;
