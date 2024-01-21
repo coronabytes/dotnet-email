@@ -1,6 +1,6 @@
 ﻿using Amazon;
-using Amazon.SimpleEmail;
-using Amazon.SimpleEmail.Model;
+using Amazon.SimpleEmailV2;
+using Amazon.SimpleEmailV2.Model;
 using Core.Email.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,12 +13,12 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
 {
     private readonly Options _options = new();
 
-    private readonly AmazonSimpleEmailServiceClient _ses;
+    private readonly AmazonSimpleEmailServiceV2Client _ses;
 
     public SimpleEmailServiceProvider(IConfiguration configuration, [ServiceKey] string key)
     {
         configuration.Bind($"Email:{key}", _options);
-        _ses = new AmazonSimpleEmailServiceClient(_options.AccessKey, _options.SecretAccessKey,
+        _ses = new AmazonSimpleEmailServiceV2Client(_options.AccessKey, _options.SecretAccessKey,
             RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
     }
 
@@ -67,9 +67,24 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
                 await m.WriteToAsync(stream, cancellationToken);
                 stream.Position = 0;
 
-                var res = await _ses
-                    .SendRawEmailAsync(new SendRawEmailRequest(new RawMessage(stream)), cancellationToken)
-                    .ConfigureAwait(false);
+                var res = await _ses.SendEmailAsync(new SendEmailRequest
+                    {
+                        FromEmailAddress = message.From,
+                        Destination = new Destination
+                        {
+                            ToAddresses = message.To,
+                            CcAddresses = message.Cc,
+                            BccAddresses = message.Bcc
+                        },
+                        Content = new EmailContent
+                        {
+                            Raw = new RawMessage
+                            {
+                                Data = stream
+                            }
+                        },
+                        ReplyToAddresses = string.IsNullOrEmpty(message.ReplyTo) ? new () : [message.ReplyTo]
+                    }, cancellationToken).ConfigureAwait(false);
 
                 list.Add(new CoreEmailStatus
                 {
