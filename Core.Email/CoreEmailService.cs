@@ -31,6 +31,16 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
         return (await provider.SendBatchAsync([message], cancellationToken)).First();
     }
 
+    public async Task<IReadOnlyCollection<CoreEmailStatus>> SendAsync(List<CoreEmailMessage> messages, CancellationToken cancellationToken = default)
+    {
+        if (_defaultProvider == null)
+            throw new InvalidOperationException($"provider \"Default\" not found");
+
+        var res = await _defaultProvider.SendBatchAsync(messages, cancellationToken);
+
+        return res;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (_persistence == null)
