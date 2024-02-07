@@ -24,10 +24,11 @@ internal class MailjetProvider : ICoreEmailProvider
     public async Task<List<CoreEmailStatus>> SendBatchAsync(List<CoreEmailMessage> messages,
         CancellationToken cancellationToken = default)
     {
-        var res = await _mailjet.SendTransactionalEmailsAsync(messages.Select(x => new TransactionalEmail
+        var batch = messages.Select(x => new TransactionalEmail
         {
             CustomID = x.Id.ToString("N"),
             To = x.To.Select(y => new SendContact(y)).ToList(),
+            From = new SendContact(x.From),
             Cc = x.Cc.Select(y => new SendContact(y)).ToList(),
             Bcc = x.Bcc.Select(y => new SendContact(y)).ToList(),
             ReplyTo = string.IsNullOrEmpty(x.ReplyTo) ? null : new SendContact(x.ReplyTo),
@@ -37,13 +38,22 @@ internal class MailjetProvider : ICoreEmailProvider
             Attachments = x.Attachments
                 .Select(y => new Attachment(y.Name, y.ContentType, Convert.ToBase64String(y.Content)))
                 .ToList()
-        })).ConfigureAwait(false);
+        }).ToList();
 
-        return res.Messages.Select(x => new CoreEmailStatus
+        var res = await _mailjet.SendTransactionalEmailsAsync(batch).ConfigureAwait(false);
+
+        return res.Messages.Select(x =>
         {
-            Id = Guid.Parse(x.CustomID),
-            IsSuccess = x.Errors.Count == 0,
-            Error = string.Join("\n", x.Errors.Select(y => y.ErrorMessage))
+            Guid.TryParse(x.CustomID, out var id);
+
+            var status = new CoreEmailStatus
+            {
+                Id = id,
+                IsSuccess = x.Errors == null || x.Errors.Count == 0,
+                Error = x.Errors != null ? string.Join("\n", x.Errors.Select(y => y.ErrorMessage)) : string.Empty
+            };
+
+            return status;
         }).ToList();
     }
 

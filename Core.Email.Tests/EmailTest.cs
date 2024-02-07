@@ -27,7 +27,7 @@ public class EmailTest
         serviceCollection.AddSmtpProvider("SMTP");
         serviceCollection.AddPostmarkProvider("Postmark");
         serviceCollection.AddSendGridProvider("SendGrid");
-        serviceCollection.AddMailjetProvider("MailJet");
+        serviceCollection.AddMailjetProvider("Mailjet");
         serviceCollection.AddSimpleEmailServiceProvider("SES");
         var serviceProvider = serviceCollection.BuildServiceProvider();
 
@@ -40,8 +40,8 @@ public class EmailTest
         {
             To = [to!],
             From = from!,
-            Subject = "Transactional Mail Test 5",
-            TextBody = "Transactional Mail Test 5",
+            Subject = "Transactional Mail Test 7",
+            TextBody = "Transactional Mail Test 7",
             Attachments =
             [
                 new CoreEmailAttachment
