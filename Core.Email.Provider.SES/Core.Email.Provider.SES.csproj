@@ -22,9 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.404.6" />
-    <PackageReference Include="AWSSDK.SQS" Version="3.7.400.50" />
-    <PackageReference Include="MimeKit" Version="4.8.0" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.0" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.0" />
+    <PackageReference Include="MimeKit" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
