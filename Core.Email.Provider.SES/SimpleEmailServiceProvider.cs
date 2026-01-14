@@ -2,8 +2,6 @@
 using Amazon;
 using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
-using Amazon.SQS;
-using Amazon.SQS.Model;
 using Core.Email.Abstractions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +17,7 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
     };
 
     private readonly Options _options = new();
-    private readonly ICoreEmailPersistence? _persistence;
+    //private readonly ICoreEmailPersistence? _persistence;
 
     private readonly AmazonSimpleEmailServiceV2Client _ses;
 
@@ -31,7 +29,7 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         _ses = new AmazonSimpleEmailServiceV2Client(_options.AccessKey, _options.SecretAccessKey,
             RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
 
-        _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
+        //_persistence = serviceProvider.GetService<ICoreEmailPersistence>();
     }
 
     public string Name => "SES";
@@ -119,77 +117,12 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         return list;
     }
 
-    public async Task GetNotificationsAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(_options.QueueUrl) || _persistence == null)
-            return;
-
-        var sqs = new AmazonSQSClient(_options.AccessKey, _options.SecretAccessKey,
-            RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
-
-        while (!cancellationToken.IsCancellationRequested)
-            try
-            {
-                var messages = await sqs.ReceiveMessageAsync(new ReceiveMessageRequest
-                {
-                    MaxNumberOfMessages = 10,
-                    VisibilityTimeout = 60,
-                    QueueUrl = _options.QueueUrl,
-                    WaitTimeSeconds = 30
-                }, cancellationToken).ConfigureAwait(false);
-
-                await _persistence.StoreNotificationBatchAsync(messages.Messages.Select(x =>
-                {
-                    var body = JsonSerializer.Deserialize<Notification>(x.Body, JsonOptions);
-
-                    return new CoreEmailNotification
-                    {
-                        ProviderMessageId = body?.Mail?.MessageId ?? string.Empty,
-                        Type = body?.NotificationType switch
-                        {
-                            "Bounce" => CoreEmailNotificationType.Bounce,
-                            "Complaint" => CoreEmailNotificationType.Complaint,
-                            "Delivery" => CoreEmailNotificationType.Delivery,
-                            _ => CoreEmailNotificationType.Unknown
-                        },
-                        Recipients = body?.NotificationType switch
-                        {
-                            "Bounce" => body.Bounce?.BouncedRecipients.Select(y => y.EmailAddress).ToList(),
-                            "Complaint" => body.Complaint?.ComplainedRecipients.Select(y => y.EmailAddress).ToList(),
-                            "Delivery" => body.Delivery?.Recipients.ToList(),
-                            _ => null
-                        } ?? [],
-                        Timestamp = body?.NotificationType switch
-                        {
-                            "Bounce" => body.Bounce?.Timestamp ?? DateTimeOffset.UtcNow,
-                            "Complaint" => body.Complaint?.Timestamp ?? DateTimeOffset.UtcNow,
-                            "Delivery" => body.Delivery?.Timestamp ?? DateTimeOffset.UtcNow,
-                            _ => DateTimeOffset.UtcNow
-                        }
-                    };
-                }).ToList(), CancellationToken.None);
-
-                await sqs.DeleteMessageBatchAsync(new DeleteMessageBatchRequest
-                {
-                    QueueUrl = _options.QueueUrl,
-                    Entries = messages.Messages
-                        .Select(x => new DeleteMessageBatchRequestEntry(x.MessageId, x.ReceiptHandle))
-                        .ToList()
-                }, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                // TODO:
-            }
-    }
-
     [Serializable]
     private class Options
     {
         public string AccessKey { get; set; } = string.Empty;
         public string SecretAccessKey { get; set; } = string.Empty;
         public string? Region { get; set; }
-        public string? QueueUrl { get; set; }
     }
 
     [Serializable]

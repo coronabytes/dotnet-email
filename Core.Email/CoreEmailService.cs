@@ -10,8 +10,6 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
     private readonly ICoreEmailProvider? _defaultProvider =
         serviceProvider.GetKeyedService<ICoreEmailProvider>(config["Email:Default"]);
 
-    private readonly ICoreEmailPersistence? _persistence = serviceProvider.GetService<ICoreEmailPersistence>();
-
     public async Task<CoreEmailStatus> SendAsync(CoreEmailMessage message,
         CancellationToken cancellationToken = default)
     {
@@ -22,11 +20,11 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
         if (provider == null)
             throw new InvalidOperationException($"provider \"{message.ProviderKey ?? "Default"}\" not found");
 
-        if (_persistence != null)
+        /*if (_persistence != null)
         {
             await _persistence.StoreBatchAsync([message], cancellationToken);
             return new CoreEmailStatus { Id = message.Id, IsSuccess = true };
-        }
+        }*/
 
         return (await provider.SendBatchAsync([message], cancellationToken)).First();
     }
@@ -41,9 +39,11 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
         return res;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (_persistence == null)
+        return Task.CompletedTask;
+
+        /*if (_persistence == null)
             return;
 
         while (!stoppingToken.IsCancellationRequested)
@@ -73,8 +73,8 @@ internal class CoreEmailService(IServiceProvider serviceProvider, IConfiguration
             }
             catch (Exception e)
             {
-                // TODO: 
+                // TODO:
             }
-        }
+        }*/
     }
 }
