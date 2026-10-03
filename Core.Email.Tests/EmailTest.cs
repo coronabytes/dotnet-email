@@ -10,9 +10,14 @@ using Xunit;
 
 namespace Core.Email.Tests;
 
+/// <summary>
+/// Sends a real email - needs credentials and TestSetup:From/To in appsettings.private.json.
+/// Excluded in CI via --filter "Category!=Integration".
+/// </summary>
 public class EmailTest
 {
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Test1()
     {
         var configBuilder = new ConfigurationBuilder();

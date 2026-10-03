@@ -24,44 +24,32 @@ internal class SmtpProvider : ICoreEmailProvider
     {
         using var client = new SmtpClient();
 
-        await client.ConnectAsync(_options.Host, _options.Port,
-                _options.Tls ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto, cancellationToken)
-            .ConfigureAwait(false);
-        await client.AuthenticateAsync(_options.Username, _options.Password, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await client.ConnectAsync(_options.Host, _options.Port,
+                    _options.Tls ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!string.IsNullOrEmpty(_options.Username))
+                await client.AuthenticateAsync(_options.Username, _options.Password, cancellationToken)
+                    .ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            return messages.Select(x => new CoreEmailStatus
+            {
+                Id = x.Id,
+                IsSuccess = false,
+                Error = e.Message
+            }).ToList();
+        }
 
         var list = new List<CoreEmailStatus>();
 
         foreach (var message in messages)
             try
             {
-                var m = new MimeMessage();
-                m.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.From));
-
-                if (!string.IsNullOrEmpty(message.ReplyTo))
-                    m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
-
-                foreach (var to in message.To)
-                    m.To.Add(new MailboxAddress(string.Empty, to));
-
-                foreach (var cc in message.Cc)
-                    m.Cc.Add(new MailboxAddress(string.Empty, cc));
-
-                foreach (var bcc in message.Bcc)
-                    m.Bcc.Add(new MailboxAddress(string.Empty, bcc));
-
-                m.Subject = message.Subject;
-
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = message.HtmlBody,
-                    TextBody = message.TextBody
-                };
-
-                foreach (var attachment in message.Attachments)
-                    bodyBuilder.Attachments.Add(attachment.Name, attachment.Content,
-                        ContentType.Parse(attachment.ContentType));
-
-                m.Body = bodyBuilder.ToMessageBody();
+                var m = CreateMimeMessage(message);
 
                 var res = await client.SendAsync(m, cancellationToken).ConfigureAwait(false);
 
@@ -82,9 +70,51 @@ internal class SmtpProvider : ICoreEmailProvider
                 });
             }
 
-        await client.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await client.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // messages are already sent - a failed QUIT must not turn them into errors
+        }
 
         return list;
+    }
+
+    internal static MimeMessage CreateMimeMessage(CoreEmailMessage message)
+    {
+        var m = new MimeMessage();
+        m.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.From));
+
+        if (!string.IsNullOrEmpty(message.ReplyTo))
+            m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
+
+        foreach (var to in message.To)
+            m.To.Add(new MailboxAddress(string.Empty, to));
+
+        foreach (var cc in message.Cc)
+            m.Cc.Add(new MailboxAddress(string.Empty, cc));
+
+        // MailKit strips the Bcc header when sending, but still delivers to these recipients
+        foreach (var bcc in message.Bcc)
+            m.Bcc.Add(new MailboxAddress(string.Empty, bcc));
+
+        m.Subject = message.Subject;
+
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = message.HtmlBody,
+            TextBody = message.TextBody
+        };
+
+        foreach (var attachment in message.Attachments)
+            bodyBuilder.Attachments.Add(attachment.Name, attachment.Content,
+                ContentType.Parse(attachment.ContentType));
+
+        m.Body = bodyBuilder.ToMessageBody();
+
+        return m;
     }
 
     [Serializable]

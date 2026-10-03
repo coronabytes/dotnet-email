@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using Amazon;
+﻿using Amazon;
 using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
 using Core.Email.Abstractions;
@@ -11,25 +10,14 @@ namespace Core.Email.Provider.SES;
 
 internal class SimpleEmailServiceProvider : ICoreEmailProvider
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly Options _options = new();
-    //private readonly ICoreEmailPersistence? _persistence;
-
     private readonly AmazonSimpleEmailServiceV2Client _ses;
 
-
-    public SimpleEmailServiceProvider(IConfiguration configuration, [ServiceKey] string key,
-        IServiceProvider serviceProvider)
+    public SimpleEmailServiceProvider(IConfiguration configuration, [ServiceKey] string key)
     {
         configuration.Bind($"Email:{key}", _options);
         _ses = new AmazonSimpleEmailServiceV2Client(_options.AccessKey, _options.SecretAccessKey,
             RegionEndpoint.GetBySystemName(_options.Region ?? "eu-central-1"));
-
-        //_persistence = serviceProvider.GetService<ICoreEmailPersistence>();
     }
 
     public string Name => "SES";
@@ -44,34 +32,7 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         foreach (var message in messages)
             try
             {
-                var m = new MimeMessage();
-                m.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.From));
-
-                if (!string.IsNullOrEmpty(message.ReplyTo))
-                    m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
-
-                foreach (var to in message.To)
-                    m.To.Add(new MailboxAddress(string.Empty, to));
-
-                foreach (var cc in message.Cc)
-                    m.Cc.Add(new MailboxAddress(string.Empty, cc));
-
-                foreach (var bcc in message.Bcc)
-                    m.Bcc.Add(new MailboxAddress(string.Empty, bcc));
-
-                m.Subject = message.Subject;
-
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = message.HtmlBody,
-                    TextBody = message.TextBody
-                };
-
-                foreach (var attachment in message.Attachments)
-                    bodyBuilder.Attachments.Add(attachment.Name, attachment.Content,
-                        ContentType.Parse(attachment.ContentType));
-
-                m.Body = bodyBuilder.ToMessageBody();
+                var m = CreateMimeMessage(message);
 
                 using var stream = new MemoryStream();
                 await m.WriteToAsync(stream, cancellationToken);
@@ -117,6 +78,39 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         return list;
     }
 
+    internal static MimeMessage CreateMimeMessage(CoreEmailMessage message)
+    {
+        var m = new MimeMessage();
+        m.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.From));
+
+        if (!string.IsNullOrEmpty(message.ReplyTo))
+            m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
+
+        foreach (var to in message.To)
+            m.To.Add(new MailboxAddress(string.Empty, to));
+
+        foreach (var cc in message.Cc)
+            m.Cc.Add(new MailboxAddress(string.Empty, cc));
+
+        // Bcc goes only into Destination - in the raw MIME it would be visible as a header
+
+        m.Subject = message.Subject;
+
+        var bodyBuilder = new BodyBuilder
+        {
+            HtmlBody = message.HtmlBody,
+            TextBody = message.TextBody
+        };
+
+        foreach (var attachment in message.Attachments)
+            bodyBuilder.Attachments.Add(attachment.Name, attachment.Content,
+                ContentType.Parse(attachment.ContentType));
+
+        m.Body = bodyBuilder.ToMessageBody();
+
+        return m;
+    }
+
     [Serializable]
     private class Options
     {
@@ -125,53 +119,4 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
         public string? Region { get; set; }
     }
 
-    [Serializable]
-    private class Notification
-    {
-        public string NotificationType { get; set; } = string.Empty;
-        public BounceNotification? Bounce { get; set; }
-        public ComplaintNotification? Complaint { get; set; }
-        public DeliveryNotification? Delivery { get; set; }
-        public MailNotification? Mail { get; set; }
-    }
-
-    [Serializable]
-    private class MailNotification
-    {
-        public string MessageId { get; set; } = string.Empty;
-
-        public DateTimeOffset Timestamp { get; set; }
-    }
-
-    [Serializable]
-    private class BounceEmail
-    {
-        public string EmailAddress { get; set; } = string.Empty;
-    }
-
-    [Serializable]
-    private class BounceNotification
-    {
-        public string BounceType { get; set; } = string.Empty;
-        public string BounceSubType { get; set; } = string.Empty;
-
-        public List<BounceEmail> BouncedRecipients { get; set; } = new();
-        public DateTimeOffset Timestamp { get; set; }
-    }
-
-    [Serializable]
-    private class ComplaintNotification
-    {
-        public string ComplaintFeedbackType { get; set; } = string.Empty;
-        public List<BounceEmail> ComplainedRecipients { get; set; } = new();
-        public DateTimeOffset ArrivalDate { get; set; }
-        public DateTimeOffset Timestamp { get; set; }
-    }
-
-    [Serializable]
-    private class DeliveryNotification
-    {
-        public List<string> Recipients { get; set; } = new();
-        public DateTimeOffset Timestamp { get; set; }
-    }
 }

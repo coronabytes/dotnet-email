@@ -29,24 +29,7 @@ internal class SendGridProvider : ICoreEmailProvider
         foreach (var message in messages)
             try
             {
-                var m = MailHelper.CreateSingleEmail(new EmailAddress(message.From, message.FromName),
-                    new EmailAddress(message.To.First()), message.Subject,
-                    message.TextBody, message.HtmlBody);
-
-                if (!string.IsNullOrEmpty(message.ReplyTo))
-                    m.ReplyTo = new EmailAddress(message.ReplyTo);
-
-                // TODO: add other Tos
-                foreach (var cc in message.Cc)
-                    m.AddCc(new EmailAddress(cc));
-
-                foreach (var bcc in message.Bcc)
-                    m.AddCc(new EmailAddress(bcc));
-
-                foreach (var attachment in message.Attachments)
-                    m.AddAttachment(attachment.Name, Convert.ToBase64String(attachment.Content),
-                        attachment.ContentType);
-
+                var m = CreateMessage(message);
                 var res = await _sendGrid.SendEmailAsync(m, cancellationToken).ConfigureAwait(false);
 
                 list.Add(new CoreEmailStatus
@@ -67,6 +50,31 @@ internal class SendGridProvider : ICoreEmailProvider
             }
 
         return list;
+    }
+
+    internal static SendGridMessage CreateMessage(CoreEmailMessage message)
+    {
+        var m = MailHelper.CreateSingleEmail(new EmailAddress(message.From, message.FromName),
+            new EmailAddress(message.To.First()), message.Subject,
+            message.TextBody, message.HtmlBody);
+
+        if (!string.IsNullOrEmpty(message.ReplyTo))
+            m.ReplyTo = new EmailAddress(message.ReplyTo);
+
+        foreach (var to in message.To.Skip(1))
+            m.AddTo(new EmailAddress(to));
+
+        foreach (var cc in message.Cc)
+            m.AddCc(new EmailAddress(cc));
+
+        foreach (var bcc in message.Bcc)
+            m.AddBcc(new EmailAddress(bcc));
+
+        foreach (var attachment in message.Attachments)
+            m.AddAttachment(attachment.Name, Convert.ToBase64String(attachment.Content),
+                attachment.ContentType);
+
+        return m;
     }
 
     [Serializable]

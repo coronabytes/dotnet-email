@@ -23,26 +23,8 @@ internal class PostmarkProvider : ICoreEmailProvider
     public async Task<List<CoreEmailStatus>> SendBatchAsync(List<CoreEmailMessage> messages,
         CancellationToken cancellationToken = default)
     {
-        var res = await _postmark.SendMessagesAsync(messages.Select(x => new PostmarkMessage
-        {
-            From = string.IsNullOrWhiteSpace(x.FromName)
-                ? x.From
-                : $"\"{x.FromName.Replace("\"", string.Empty)}\" <{x.From}>",
-            To = x.To.First(),
-            Cc = x.Cc.FirstOrDefault(), // TODO: only one?
-            Bcc = x.Bcc.FirstOrDefault(),
-            ReplyTo = x.ReplyTo,
-            Subject = x.Subject,
-            TextBody = x.TextBody,
-            HtmlBody = x.HtmlBody,
-            MessageStream = _options.MessageStream,
-            Attachments = x.Attachments.Select(y => new PostmarkMessageAttachment
-            {
-                Content = Convert.ToBase64String(y.Content),
-                ContentType = y.ContentType,
-                Name = y.Name
-            }).ToList()
-        })).ConfigureAwait(false);
+        var res = await _postmark.SendMessagesAsync(messages.Select(x => CreateMessage(x, _options.MessageStream)))
+            .ConfigureAwait(false);
 
         return res.Select((x, idx) => new CoreEmailStatus
         {
@@ -52,6 +34,27 @@ internal class PostmarkProvider : ICoreEmailProvider
             Error = x.Message
         }).ToList();
     }
+
+    internal static PostmarkMessage CreateMessage(CoreEmailMessage x, string messageStream) => new()
+    {
+        From = string.IsNullOrWhiteSpace(x.FromName)
+            ? x.From
+            : $"\"{x.FromName.Replace("\"", string.Empty)}\" <{x.From}>",
+        To = string.Join(",", x.To),
+        Cc = x.Cc.Count > 0 ? string.Join(",", x.Cc) : null,
+        Bcc = x.Bcc.Count > 0 ? string.Join(",", x.Bcc) : null,
+        ReplyTo = x.ReplyTo,
+        Subject = x.Subject,
+        TextBody = x.TextBody,
+        HtmlBody = x.HtmlBody,
+        MessageStream = messageStream,
+        Attachments = x.Attachments.Select(y => new PostmarkMessageAttachment
+        {
+            Content = Convert.ToBase64String(y.Content),
+            ContentType = y.ContentType,
+            Name = y.Name
+        }).ToList()
+    };
 
     [Serializable]
     private class Options

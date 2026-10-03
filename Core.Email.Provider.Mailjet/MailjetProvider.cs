@@ -24,21 +24,7 @@ internal class MailjetProvider : ICoreEmailProvider
     public async Task<List<CoreEmailStatus>> SendBatchAsync(List<CoreEmailMessage> messages,
         CancellationToken cancellationToken = default)
     {
-        var batch = messages.Select(x => new TransactionalEmail
-        {
-            CustomID = x.Id.ToString("N"),
-            To = x.To.Select(y => new SendContact(y)).ToList(),
-            From = string.IsNullOrWhiteSpace(x.FromName) ? new SendContact(x.From) : new SendContact(x.From, x.FromName),
-            Cc = x.Cc.Select(y => new SendContact(y)).ToList(),
-            Bcc = x.Bcc.Select(y => new SendContact(y)).ToList(),
-            ReplyTo = string.IsNullOrEmpty(x.ReplyTo) ? null : new SendContact(x.ReplyTo),
-            Subject = x.Subject,
-            TextPart = x.TextBody,
-            HTMLPart = x.HtmlBody,
-            Attachments = x.Attachments
-                .Select(y => new Attachment(y.Name, y.ContentType, Convert.ToBase64String(y.Content)))
-                .ToList()
-        }).ToList();
+        var batch = messages.Select(CreateMessage).ToList();
 
         var res = await _mailjet.SendTransactionalEmailsAsync(batch).ConfigureAwait(false);
 
@@ -56,6 +42,22 @@ internal class MailjetProvider : ICoreEmailProvider
             return status;
         }).ToList();
     }
+
+    internal static TransactionalEmail CreateMessage(CoreEmailMessage x) => new()
+    {
+        CustomID = x.Id.ToString("N"),
+        To = x.To.Select(y => new SendContact(y)).ToList(),
+        From = string.IsNullOrWhiteSpace(x.FromName) ? new SendContact(x.From) : new SendContact(x.From, x.FromName),
+        Cc = x.Cc.Select(y => new SendContact(y)).ToList(),
+        Bcc = x.Bcc.Select(y => new SendContact(y)).ToList(),
+        ReplyTo = string.IsNullOrEmpty(x.ReplyTo) ? null : new SendContact(x.ReplyTo),
+        Subject = x.Subject,
+        TextPart = x.TextBody,
+        HTMLPart = x.HtmlBody,
+        Attachments = x.Attachments
+            .Select(y => new Attachment(y.Name, y.ContentType, Convert.ToBase64String(y.Content)))
+            .ToList()
+    };
 
     [Serializable]
     private class Options

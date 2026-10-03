@@ -13,14 +13,17 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v7
+
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.x
-    
+
     - name: Build
       run: dotnet build --configuration Release
+
+    - name: Test
+      run: dotnet test --configuration Release --no-build --filter "Category!=Integration"
