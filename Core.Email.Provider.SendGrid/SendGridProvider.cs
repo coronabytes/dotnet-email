@@ -29,7 +29,7 @@ internal class SendGridProvider : ICoreEmailProvider
         foreach (var message in messages)
             try
             {
-                var m = MailHelper.CreateSingleEmail(new EmailAddress(message.From),
+                var m = MailHelper.CreateSingleEmail(new EmailAddress(message.From, message.FromName),
                     new EmailAddress(message.To.First()), message.Subject,
                     message.TextBody, message.HtmlBody);
 

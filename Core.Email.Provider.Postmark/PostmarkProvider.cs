@@ -25,7 +25,9 @@ internal class PostmarkProvider : ICoreEmailProvider
     {
         var res = await _postmark.SendMessagesAsync(messages.Select(x => new PostmarkMessage
         {
-            From = x.From,
+            From = string.IsNullOrWhiteSpace(x.FromName)
+                ? x.From
+                : $"\"{x.FromName.Replace("\"", string.Empty)}\" <{x.From}>",
             To = x.To.First(),
             Cc = x.Cc.FirstOrDefault(), // TODO: only one?
             Bcc = x.Bcc.FirstOrDefault(),

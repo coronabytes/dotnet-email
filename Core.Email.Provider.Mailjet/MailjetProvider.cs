@@ -28,7 +28,7 @@ internal class MailjetProvider : ICoreEmailProvider
         {
             CustomID = x.Id.ToString("N"),
             To = x.To.Select(y => new SendContact(y)).ToList(),
-            From = new SendContact(x.From),
+            From = string.IsNullOrWhiteSpace(x.FromName) ? new SendContact(x.From) : new SendContact(x.From, x.FromName),
             Cc = x.Cc.Select(y => new SendContact(y)).ToList(),
             Bcc = x.Bcc.Select(y => new SendContact(y)).ToList(),
             ReplyTo = string.IsNullOrEmpty(x.ReplyTo) ? null : new SendContact(x.ReplyTo),

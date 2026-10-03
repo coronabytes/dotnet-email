@@ -45,7 +45,7 @@ internal class SimpleEmailServiceProvider : ICoreEmailProvider
             try
             {
                 var m = new MimeMessage();
-                m.From.Add(new MailboxAddress("", message.From));
+                m.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.From));
 
                 if (!string.IsNullOrEmpty(message.ReplyTo))
                     m.ReplyTo.Add(new MailboxAddress(string.Empty, message.ReplyTo));
